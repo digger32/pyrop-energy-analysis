@@ -1,0 +1,90 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyrop-energy"
+version = "1.0.0"
+description = "Multi-year electricity-consumption analysis and ML forecasting of an ore-preparation plant"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "[Author 1]", email = "corresponding.author@email.example"},
+]
+keywords = [
+    "energy efficiency",
+    "ore preparation",
+    "comminution",
+    "machine learning",
+    "cogeneration",
+    "power quality",
+    "load forecasting",
+    "mining",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering",
+]
+
+dependencies = [
+    "numpy>=1.24",
+    "pandas>=2.0",
+    "scipy>=1.11",
+    "scikit-learn>=1.3",
+    "statsmodels>=0.14",
+    "matplotlib>=3.7",
+    "seaborn>=0.12",
+    "openpyxl>=3.1",
+    "xlrd>=2.0",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "xgboost>=2.0",
+    "catboost>=1.2",
+    "lightgbm>=4.0",
+    "torch>=2.0",
+]
+shap = [
+    "shap>=0.45",
+]
+notebook = [
+    "jupyterlab>=4.0",
+    "ipywidgets>=8.1",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "ruff>=0.4",
+]
+
+[project.scripts]
+pyrop-analysis  = "pyrop_energy.cli:run_full_analysis"
+pyrop-benchmark = "pyrop_energy.cli:run_ml_benchmark"
+pyrop-figures   = "pyrop_energy.cli:generate_figures"
+
+[project.urls]
+"Homepage"      = "https://github.com/<user>/pyrop-energy-analysis"
+"Bug Tracker"   = "https://github.com/<user>/pyrop-energy-analysis/issues"
+"Documentation" = "https://github.com/<user>/pyrop-energy-analysis/blob/main/docs/REPRODUCIBILITY.md"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pyrop_energy = ["py.typed"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
