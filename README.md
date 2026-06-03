@@ -108,7 +108,8 @@ If you use this code or the deposited dataset in your work, please cite:
 
 ```bibtex
 @article{<lastname>2026pyrop,
-  author  = {<author list>},
+  author  = {<Yury V. Dmitrak, Roman V. Klyuev, Nikita V. Martyushev,
+Boris V. Malozyomov, Sergei O. Kurashkin, Vadim S. Tynchenko, Aleksei S. Borodulin, Ahmad Hammoud, Shohel Sayeed>},
   title   = {Multi-year electricity-consumption analysis and machine-learning
              forecasting of an ore-preparation plant integrated with on-site
              cogeneration},
