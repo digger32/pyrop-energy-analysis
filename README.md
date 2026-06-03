@@ -87,9 +87,9 @@ GPU acceleration is auto-detected: if CUDA is available, XGBoost and CatBoost wi
 
 Two pathways are available:
 
-1. **Reproducing the figures from the deposited dataset.** A processed and anonymised version of the dataset, together with the intermediate analysis outputs (CSVs, tables, leaderboards), is deposited on Zenodo at `<DOI to be inserted at acceptance>` under a CC-BY 4.0 licence. Place the contents of the Zenodo archive in `data/processed/` and run the figure-generation script.
+1. **Reproducing the figures from the deposited dataset.** A processed and anonymised version of the dataset, together with the intermediate analysis outputs (CSVs, tables, leaderboards), is deposited on Zenodo at `https://doi.org/10.5281/zenodo.20529770` under a CC-BY 4.0 licence. Place the contents of the Zenodo archive in `data/processed/` and run the figure-generation script.
 
-2. **Access to the raw operational records.** The raw monthly and hourly SCADA exports and the instrumental measurement files are available from the corresponding author upon reasonable request, subject to a Non-Disclosure Agreement (NDA) with the operating company. Requests should outline the intended use and the institutional context. Please contact `<corresponding author email>`.
+2. **Access to the raw operational records.** The raw monthly and hourly SCADA exports and the instrumental measurement files are available from the corresponding author upon reasonable request, subject to a Non-Disclosure Agreement (NDA) with the operating company. Requests should outline the intended use and the institutional context. Please contact `scorpion_ser@mail.ru`.
 
 The SpreadsheetML 2003 XML format used by the instrumental records, the multi-sheet structure of the analyser exports, and the non-trivial timestamp reconstruction required by these files are described in `docs/DATA_DICTIONARY.md`. Independent groups will be able to apply this pipeline to their own data without modifications, provided that the data are exported in the same format families (SCADA hourly Excel, instrumental SpreadsheetML 2003).
 
@@ -109,7 +109,8 @@ If you use this code or the deposited dataset in your work, please cite:
 ```bibtex
 @article{<lastname>2026pyrop,
   author  = {<Yury V. Dmitrak, Roman V. Klyuev, Nikita V. Martyushev,
-Boris V. Malozyomov, Sergei O. Kurashkin, Vadim S. Tynchenko, Aleksei S. Borodulin, Ahmad Hammoud, Shohel Sayeed>},
+  Boris V. Malozyomov, Sergei O. Kurashkin, Vadim S. Tynchenko, Aleksei S. Borodulin,
+  Ahmad Hammoud, Shohel Sayeed>},
   title   = {Multi-year electricity-consumption analysis and machine-learning
              forecasting of an ore-preparation plant integrated with on-site
              cogeneration},
