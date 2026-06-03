@@ -8,8 +8,8 @@ The raw operational records analysed in the manuscript **are not included in thi
 
 A processed and anonymised version of the dataset, sufficient to reproduce all figures and tables of the manuscript, is deposited on **Zenodo** at:
 
-> DOI: `<to be inserted at acceptance>`
-
+> DOI: `https://doi.org/10.5281/zenodo.19941137`.
+> 
 The dataset contains:
 
 - Wide hourly panels of P and Q for the six 6 kV sources, two seasonal blocks of 2023.
@@ -29,7 +29,7 @@ The raw monthly and hourly SCADA exports and the instrumental measurement files 
 
 Access can be granted to qualified researchers upon reasonable request to the corresponding author, subject to a Non-Disclosure Agreement (NDA) with the operating company. Requests should outline the intended use and the institutional context.
 
-Contact: `<corresponding author email>`.
+Contact: `scorpion_ser@mail.ru`.
 
 ## Why the data are restricted
 
