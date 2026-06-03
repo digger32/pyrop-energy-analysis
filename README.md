@@ -59,7 +59,7 @@ pyrop-energy-analysis/
 ### Option B: local installation
 
 ```bash
-git clone https://github.com/<user>/pyrop-energy-analysis.git
+git clone https://github.com/digger32/pyrop-energy-analysis.git
 cd pyrop-energy-analysis
 
 # Conda (recommended)
