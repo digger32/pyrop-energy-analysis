@@ -109,7 +109,7 @@ original-submission numbers, as noted above.
 
 Two pathways are available:
 
-1. **Reproducing the figures from the deposited dataset.** A processed and anonymised version of the dataset, together with the intermediate analysis outputs (CSVs, tables, leaderboards), is deposited on Zenodo at `https://doi.org/10.5281/zenodo.20529770` under a CC-BY 4.0 licence. Place the contents of the Zenodo archive in `data/processed/` and run the figure-generation script.
+1. **Reproducing the figures from the deposited dataset.** A processed and anonymised version of the dataset, together with the intermediate analysis outputs (CSVs, tables, leaderboards), is deposited on Zenodo at `https://doi.org/10.5281/zenodo.23182597` under a CC-BY 4.0 licence. Place the contents of the Zenodo archive in `data/processed/` and run the figure-generation script.
 
 2. **Access to the raw operational records.** The raw monthly and hourly SCADA exports and the instrumental measurement files are available from the corresponding author upon reasonable request, subject to a Non-Disclosure Agreement (NDA) with the operating company. Requests should outline the intended use and the institutional context. Please contact `scorpion_ser@mail.ru`.
 
