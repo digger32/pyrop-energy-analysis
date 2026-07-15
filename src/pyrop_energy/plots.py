@@ -163,42 +163,60 @@ def make_figure_2():
     fig = plt.figure(figsize=(12, 10))
     gs = gridspec.GridSpec(2, 2, hspace=0.30, wspace=0.30)
 
-    summary = pd.read_csv(OUTPUT_DIR / "tables" / "summary_all_sources.csv")
-    # Aggregate by entity (sum July+December for shares)
-    agg = summary.groupby("entity").agg(
-        P_mean=("P_mean", "sum"),
-        Q_mean=("Q_mean", "sum"),
-    ).reset_index()
+    # Supply-side balance boundary: the pies show the four SUPPLY channels
+    # (two grid incomers + two cogeneration cells). Internal outgoing
+    # feeders (cell_307, cell_402) are a subset of this consumption and are
+    # excluded to avoid double counting. Shares are duration-weighted
+    # annual ENERGY (sum of hourly values over the merged 2023 panel), not
+    # equal-weight block means.
+    panel_p0 = pd.read_csv(OUTPUT_DIR / "tables" / "panel_P_hourly.csv",
+                           index_col=0, parse_dates=True)
+    panel_q0 = pd.read_csv(OUTPUT_DIR / "tables" / "panel_Q_hourly.csv",
+                           index_col=0, parse_dates=True)
 
-    # Order: bus_1, bus_2, gen_cell_2, gen_cell_23, cell_307, cell_402
-    order = ["bus_1", "bus_2", "gen_cell_2", "gen_cell_23", "cell_307", "cell_402"]
-    agg = agg.set_index("entity").loc[order].reset_index()
-    colors = [SOURCE_COLORS[e] for e in agg["entity"]]
+    supply = ["bus_1", "bus_2", "gen_cell_2", "gen_cell_23"]
 
-    # (a) Pie of P
+    def _annual_energy(panel, source):
+        cols = [c for c in panel.columns if c.startswith(source)]
+        s = panel[cols[0]]
+        for c in cols[1:]:
+            s = s.combine_first(panel[c])
+        s = s.dropna()
+        return s.sum() * 8760 / len(s)  # annualised kWh (or kvarh)
+
+    E_p = {s: _annual_energy(panel_p0, s) for s in supply}
+    E_q = {s: _annual_energy(panel_q0, s) for s in supply}
+    tot_p, tot_q = sum(E_p.values()), sum(E_q.values())
+    cogen_p = 100 * (E_p["gen_cell_2"] + E_p["gen_cell_23"]) / tot_p
+    grid_q = 100 * (E_q["bus_1"] + E_q["bus_2"]) / tot_q
+    bus2_q = 100 * E_q["bus_2"] / tot_q
+    colors = [SOURCE_COLORS[e] for e in supply]
+
+    # (a) Pie of annual active energy, supply structure
     ax = fig.add_subplot(gs[0, 0])
-    sizes_P = agg["P_mean"]
-    wedges, texts, autotexts = ax.pie(sizes_P, labels=agg["entity"],
+    wedges, texts, autotexts = ax.pie([E_p[s] for s in supply], labels=supply,
                                        colors=colors, autopct="%1.1f%%",
                                        startangle=90, textprops={"fontsize": 8})
     for at in autotexts:
         at.set_fontsize(8)
         at.set_color("white")
         at.set_fontweight("bold")
-    ax.set_title("Active power shares\n(cogeneration 51.2%, factory 30.6%, grid 18.2%)")
+    ax.set_title(f"Active-energy supply structure\n"
+                 f"(cogeneration {cogen_p:.1f}%, grid {100-cogen_p:.1f}%; "
+                 f"total {tot_p/1e6:.1f} GWh/year)")
     panel_label(ax, "(a)", x=-0.05)
 
-    # (b) Pie of Q
+    # (b) Pie of annual reactive energy, supply structure
     ax = fig.add_subplot(gs[0, 1])
-    sizes_Q = agg["Q_mean"]
-    wedges, texts, autotexts = ax.pie(sizes_Q, labels=agg["entity"],
+    wedges, texts, autotexts = ax.pie([E_q[s] for s in supply], labels=supply,
                                        colors=colors, autopct="%1.1f%%",
                                        startangle=90, textprops={"fontsize": 8})
     for at in autotexts:
         at.set_fontsize(8)
         at.set_color("white")
         at.set_fontweight("bold")
-    ax.set_title("Reactive power shares\n(grid 60.7%, factory 24.9%, cogeneration 14.4%)")
+    ax.set_title(f"Reactive-energy supply structure\n"
+                 f"(grid {grid_q:.1f}%, bus 2 alone {bus2_q:.1f}%)")
     panel_label(ax, "(b)", x=-0.05)
 
     # (c, d) Correlation matrices for hourly P and Q
@@ -527,14 +545,19 @@ def make_figure_6():
     savings_mwh = items["saving_kwh_per_year"].values / 1000  # to MWh
     savings_pct = items["saving_pct_of_total"].values
 
-    # (a) Waterfall — show in MWh for legibility (savings are small relative to 183 GWh)
+    # (a) Waterfall — in MWh for legibility (savings are small relative to
+    # the supply-side annual consumption). The annual total is recovered
+    # from the reserves CSV itself (total saving / total percentage), so
+    # the figure stays consistent with whatever balance boundary the
+    # pipeline used — no hardcoded consumption.
     ax = fig.add_subplot(gs[0])
-    annual_total_gwh = 183.0
     total_saved_mwh = savings_mwh.sum()
-    annual_total_mwh = annual_total_gwh * 1000
+    total_pct = res.iloc[-1]["saving_pct_of_total"]
+    annual_total_mwh = total_saved_mwh / (total_pct / 100.0)
+    annual_total_gwh = annual_total_mwh / 1000.0
 
     short_names = ["Annual\nconsumption",
-                   "Power factor\n0.40 → 0.95",
+                   "Power factor\nto 0.95 (incomers)",
                    "Idle VFD\nshutdown",
                    "Transformer\nmodernisation",
                    "After all\nreserves"]
@@ -554,7 +577,7 @@ def make_figure_6():
                color=col, alpha=0.85, edgecolor="black", linewidth=0.6, width=0.6)
 
     # Connect tops with light dashed lines for visual continuity
-    tops = [heights[0]]  # 183000
+    tops = [heights[0]]
     cum = annual_total_mwh
     for i in range(1, 4):
         cum = cum + heights[i]
@@ -568,14 +591,14 @@ def make_figure_6():
                 "k--", lw=0.7, alpha=0.6)
 
     # Annotations
-    ax.text(0, annual_total_mwh + 4000, f"{annual_total_mwh:,.0f} MWh\n(183.0 GWh)",
+    ax.text(0, annual_total_mwh + 400, f"{annual_total_mwh:,.0f} MWh\n({annual_total_gwh:.1f} GWh)",
             ha="center", fontsize=9, fontweight="bold")
-    ax.text(4, heights[-1] + 4000, f"{heights[-1]:,.0f} MWh\n(178.8 GWh)",
+    ax.text(4, heights[-1] + 400, f"{heights[-1]:,.0f} MWh\n({heights[-1]/1000:.1f} GWh)",
             ha="center", fontsize=9, fontweight="bold")
     for i in range(1, 4):
         # Place label in middle of the saving bar
         mid_y = bottoms[i] + heights[i] / 2
-        ax.text(i, mid_y - 6000,
+        ax.text(i, mid_y - 0.06 * total_saved_mwh - 200,
                 f"−{savings_mwh[i-1]:.0f} MWh\n({savings_pct[i-1]:.2f}%)",
                 ha="center", va="top", fontsize=8, fontweight="bold",
                 color="black",
@@ -587,14 +610,15 @@ def make_figure_6():
     ax.set_title(f"Waterfall of energy-saving reserves\n"
                  f"(total saving: {total_saved_mwh/1000:.2f} GWh/year, "
                  f"{savings_pct.sum():.2f}% of consumption)")
-    ax.set_ylim(annual_total_mwh - total_saved_mwh - 12000,
-                annual_total_mwh + 14000)
+    pad = max(1.2 * total_saved_mwh, 0.01 * annual_total_mwh)
+    ax.set_ylim(annual_total_mwh - total_saved_mwh - pad,
+                annual_total_mwh + pad)
     panel_label(ax, "(a)", x=-0.07)
 
     # (b) CO2 avoidance breakdown
     ax = fig.add_subplot(gs[1])
     co2 = items["co2_avoided_t_per_year"].values
-    short_labels = ["pf 0.4→0.95", "VFD idle\nshutdown", "Transformer\nmodernisation"]
+    short_labels = ["pf → 0.95\n(incomers)", "VFD idle\nshutdown", "Transformer\nmodernisation"]
     bars = ax.bar(range(len(co2)), co2,
                   color=["#d62728", "#ff7f0e", "#2ca02c"],
                   alpha=0.85, edgecolor="black", linewidth=0.5)

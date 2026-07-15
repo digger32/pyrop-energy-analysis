@@ -217,23 +217,48 @@ def load_mill_session(path: Path) -> Optional[pd.DataFrame]:
 
     base_date = _extract_session_date(path.name)
 
-    header_row = _find_header_row(powers_sheet)
-    if header_row is None:
+    # --- Block guard -------------------------------------------------------
+    # The analyser export may contain SEVERAL stacked sub-tables on one
+    # sheet, each with its own header row (e.g. per-phase blocks followed by
+    # the three-phase Σ block). Reading everything after the FIRST header
+    # silently mixes blocks and can halve or otherwise corrupt the
+    # aggregated quantities (this exact failure produced an erroneous mean
+    # P of 1,324 kW instead of the correct 2,647 kW in an earlier version).
+    # We therefore locate ALL header rows, restrict parsing to the single
+    # block whose header carries the Σ (suite-aggregated) columns, and stop
+    # at the next header row.
+    header_rows = _find_all_header_rows(powers_sheet)
+    if not header_rows:
         return None
-    headers = powers_sheet.iloc[header_row].astype(str).tolist()
+    if len(header_rows) > 1:
+        print(f"  [block guard] {path.name}: {len(header_rows)} stacked "
+              f"sub-tables detected on the powers sheet; "
+              f"parsing only the \u03a3 block.")
 
-    p_col = q_col = None
-    for i, h in enumerate(headers):
-        h_low = h.lower()
-        if p_col is None and ("сумм" in h_low and "p" in h_low or "p_sum" in h_low):
-            p_col = i
-        if q_col is None and ("сумм" in h_low and "q" in h_low or "q_sum" in h_low):
-            q_col = i
-    # Fallback to fixed column positions used by the analyser default export.
-    if p_col is None: p_col = 13
-    if q_col is None: q_col = 14
+    header_row = p_col = q_col = None
+    block_end = len(powers_sheet)
+    for k, hr in enumerate(header_rows):
+        headers = powers_sheet.iloc[hr].astype(str).tolist()
+        pc = qc = None
+        for i, h in enumerate(headers):
+            h_low = h.lower()
+            hs = h_low.strip()
+            if pc is None and (hs.startswith("p") and _agg_marker(h_low) or "p_sum" in h_low):
+                pc = i
+            if qc is None and (hs.startswith("q") and _agg_marker(h_low) or "q_sum" in h_low):
+                qc = i
+        if pc is not None and qc is not None:
+            header_row, p_col, q_col = hr, pc, qc
+            block_end = header_rows[k + 1] if k + 1 < len(header_rows) else len(powers_sheet)
+            break
+    if header_row is None:
+        # Single block without recognisable Σ headers: fall back to the
+        # first header and the analyser's default column positions.
+        header_row = header_rows[0]
+        block_end = header_rows[1] if len(header_rows) > 1 else len(powers_sheet)
+        p_col, q_col = 13, 14
 
-    data = powers_sheet.iloc[header_row + 1:].copy()
+    data = powers_sheet.iloc[header_row + 1:block_end].copy()
     time_series = pd.to_datetime(data.iloc[:, 0], errors="coerce")
     timestamps = _build_full_datetimes(time_series, base_date)
     if timestamps is None:
@@ -245,27 +270,91 @@ def load_mill_session(path: Path) -> Optional[pd.DataFrame]:
     out = pd.DataFrame({"P": p_kW.values, "Q": q_kvar.values}, index=timestamps)
     out = out.dropna()
     out.index.name = "timestamp"
+
+    # --- Kp invariant check ------------------------------------------------
+    # When the block also carries S_Σ (apparent power) and Kp_Σ (power
+    # factor), the identity P ≈ S · Kp must hold. A violation indicates
+    # that P, S, Kp were taken from DIFFERENT sub-tables (the failure mode
+    # behind the erroneous 1,324 kW), so we refuse the file loudly rather
+    # than propagate corrupted values.
+    headers_low = [str(h).lower() for h in powers_sheet.iloc[header_row].values]
+    s_col = kp_col = None
+    for i, h in enumerate(headers_low):
+        hs = h.strip()
+        if kp_col is None and (hs.startswith("kp") and _agg_marker(h) or "kp_sum" in h):
+            kp_col = i
+        elif s_col is None and (hs.startswith("s") and _agg_marker(h) or "s_sum" in h):
+            s_col = i
+    if s_col is not None and kp_col is not None:
+        s_kVA = pd.to_numeric(_clean_decimal(data.iloc[:, s_col]), errors="coerce") / 1000.0
+        kp    = pd.to_numeric(_clean_decimal(data.iloc[:, kp_col]), errors="coerce")
+        chk = pd.DataFrame({"P": p_kW.values, "SKp": (s_kVA * kp).values}).dropna()
+        if len(chk) > 0:
+            rel = abs(chk["P"].mean() - chk["SKp"].mean()) / max(chk["P"].mean(), 1e-9)
+            if rel > 0.02:
+                raise ValueError(
+                    f"{path.name}: Kp invariant violated on the powers sheet "
+                    f"(mean P = {chk['P'].mean():.0f} kW, mean S\u00b7Kp = "
+                    f"{chk['SKp'].mean():.0f} kW, deviation {100*rel:.1f}% > 2%). "
+                    f"P, S and Kp were likely read from different sub-tables; "
+                    f"inspect the block structure of the export.")
     return out
 
 
 def _extract_session_date(filename: str) -> Optional[pd.Timestamp]:
-    """Extract a date from the filename pattern YYYY-MM-DD or DD-MM-YYYY."""
-    m = re.search(r"(\d{4})[-_](\d{2})[-_](\d{2})", filename)
+    """Extract a date from the filename.
+
+    Accepts YYYY-MM-DD and DD-MM-YYYY with '-', '_' or '.' separators; the
+    analyser's native exports are named like '15.07.2024 10.21.31-...'.
+    """
+    m = re.search(r"(\d{4})[-_.](\d{2})[-_.](\d{2})", filename)
     if m:
         return pd.Timestamp(year=int(m.group(1)), month=int(m.group(2)), day=int(m.group(3)))
-    m = re.search(r"(\d{2})[-_](\d{2})[-_](\d{4})", filename)
+    m = re.search(r"(\d{2})[-_.](\d{2})[-_.](\d{4})", filename)
     if m:
         return pd.Timestamp(year=int(m.group(3)), month=int(m.group(2)), day=int(m.group(1)))
     return None
 
 
+
+def _is_aggregate_power_header(cell: str) -> bool:
+    """True for the analyser's aggregate power headers.
+
+    Matches both the verbose form ("P сумм, Вт") and the sigma form
+    ("PΣ, Вт"). NB: str.lower() maps a word-final capital Σ to the FINAL
+    sigma ς, not σ, so both lowercase sigmas must be accepted.
+    """
+    c = cell.lower()
+    if "p_сумм" in c or "p sum" in c or "p_total" in c or "сумм" in c:
+        return True
+    return re.search(r"\b(p|q|s|kp)\s*[σς]", c) is not None
+
+
+def _agg_marker(h_low: str) -> bool:
+    return "сумм" in h_low or "σ" in h_low or "ς" in h_low
+
 def _find_header_row(df: pd.DataFrame, max_rows: int = 8) -> Optional[int]:
     """Locate the header row by looking for cells matching power-related labels."""
     for r in range(min(max_rows, len(df))):
         cells = [str(c).lower() for c in df.iloc[r].values]
-        if any("p_сумм" in c or "p sum" in c or "p_total" in c or "сумм" in c for c in cells):
+        if any(_is_aggregate_power_header(c) for c in cells):
             return r
     return None
+
+
+def _find_all_header_rows(df: pd.DataFrame) -> list[int]:
+    """Locate ALL header rows on the sheet (one per stacked sub-table).
+
+    The analyser export can stack several sub-tables on one sheet; each
+    starts with a header row containing power-related labels. Scans the
+    whole sheet, not only the top rows.
+    """
+    rows = []
+    for r in range(len(df)):
+        cells = [str(c).lower() for c in df.iloc[r].values]
+        if any(_is_aggregate_power_header(c) for c in cells):
+            rows.append(r)
+    return rows
 
 
 def _build_full_datetimes(time_series: pd.Series, base_date: Optional[pd.Timestamp]):

@@ -29,12 +29,12 @@ pyrop-energy-analysis/
 │       ├── parsers.py                   ← SCADA + SpreadsheetML 2003 readers
 │       ├── stats.py                     ← descriptive stats, GoF, stationarity
 │       ├── features.py                  ← calendar, lag, rolling, panel features
-│       ├── ml.py                        ← 18-model rolling-origin benchmark
+│       ├── ml.py                        ← 17 learned regressors + 3 naive baselines, rolling-origin
 │       ├── asymmetry.py                 ← Granger + sign-conditional CC
 │       ├── reserves.py                  ← three energy-saving reserves
 │       └── plots.py                     ← Matplotlib figures
 ├── notebooks/
-│   └── Pyrop_analysis.ipynb             ← end-to-end Colab-ready notebook
+│   └── Pyrop_analysis.ipynb             ← LEGACY end-to-end notebook (see note below)
 ├── scripts/
 │   ├── run_full_analysis.py             ← reproduce all CSV/JSON outputs
 │   ├── run_ml_benchmark.py              ← only the ML benchmark
@@ -50,13 +50,19 @@ pyrop-energy-analysis/
 
 ## Quick start
 
-### Option A: Google Colab (recommended for first-time users)
+### Option A: local installation (authoritative path)
 
-1. Open `notebooks/Pyrop_analysis.ipynb` in Colab.
-2. **Runtime → Change runtime type → T4 GPU** (recommended; the gradient-boosting models run roughly 5× faster on GPU).
-3. Run all cells. The notebook installs dependencies, parses the data, runs the full benchmark, and produces every figure of the manuscript.
+The scripts `run_full_analysis.py` and `generate_figures.py` are the
+authoritative reproduction path: they contain the corrected supply-side
+reserve calculation, the leakage-safe feature matrix, and the instrument
+parser with the sub-table block guard.
 
-### Option B: local installation
+> **Note on the notebook.** `notebooks/Pyrop_analysis.ipynb` is retained as
+> a LEGACY artifact of the original submission. It predates the revision
+> corrections (balance-boundary reserves, leakage-safe features, parser
+> block guard) and reproduces the superseded numbers of the original
+> submission. Use the scripts below for the numbers reported in the
+> revised manuscript.
 
 ```bash
 git clone https://github.com/digger32/pyrop-energy-analysis.git
@@ -77,9 +83,25 @@ Then:
 ```bash
 python scripts/run_full_analysis.py --input data/raw/ --output output/
 python scripts/generate_figures.py  --input output/   --output output/figures_final/
+python scripts/run_f_fig5.py        --repo .   # revised Fig5 (benchmark + honest SHAP)
 ```
 
+`run_f_fig5.py` supersedes the Fig5 produced by `generate_figures.py`: it
+builds the revised four-panel benchmark figure (best learned model vs the
+lag-1 persistence baseline, predicted-vs-actual on the last fold, the
+R² diagonal plot, and a SHAP beeswarm for the best learned model), and
+`scripts/check_instrumental_values.py` audits the raw analyser exports for
+the stacked sub-table structure before any instrument-derived number is
+used.
+
 GPU acceleration is auto-detected: if CUDA is available, XGBoost and CatBoost will run on the GPU. No configuration is required.
+
+### Option B (legacy): Google Colab notebook
+
+Open `notebooks/Pyrop_analysis.ipynb` in Colab and run all cells
+(**Runtime → Change runtime type → T4 GPU** recommended). This path is
+retained for archival purposes only and reproduces the superseded
+original-submission numbers, as noted above.
 
 ## Data availability
 
@@ -95,7 +117,7 @@ The SpreadsheetML 2003 XML format used by the instrumental records, the multi-sh
 
 ## Reproducibility
 
-Random seeds are fixed at `SEED = 42` throughout. The full benchmark of 18 models on 10 source-period combinations completes in approximately:
+Random seeds are fixed at `SEED = 42` throughout. The full benchmark of 17 learned regressors and 3 naive baselines on 12 source--period combinations completes in approximately:
 
 - 30 minutes on a Google Colab T4 GPU instance,
 - 2 hours on a CPU-only laptop with 8 cores.
@@ -109,8 +131,7 @@ If you use this code or the deposited dataset in your work, please cite:
 ```bibtex
 @article{<lastname>2026pyrop,
   author  = {<Yury V. Dmitrak, Roman V. Klyuev, Nikita V. Martyushev,
-  Boris V. Malozyomov, Sergei O. Kurashkin, Vadim S. Tynchenko, Aleksei S. Borodulin,
-  Ahmad Hammoud, Shohel Sayeed>},
+Boris V. Malozyomov, Sergei O. Kurashkin, Vadim S. Tynchenko, Aleksei S. Borodulin, Ahmad Hammoud, Shohel Sayeed>},
   title   = {Multi-year electricity-consumption analysis and machine-learning
              forecasting of an ore-preparation plant integrated with on-site
              cogeneration},

@@ -2,7 +2,8 @@
 
 The benchmark covers three families of regressors:
 
-- Baselines: Persistence-at-lag-24, Seasonal-Naive-at-lag-168.
+- Baselines: Persistence-at-lag-1 (the manuscript reference baseline),
+  Persistence-at-lag-24, Seasonal-Naive-at-lag-168.
 - Linear (6): LinearRegression, Ridge, Lasso, ElasticNet, BayesianRidge, Huber.
 - Trees / kernels / NN (10): KNN, DecisionTree, RandomForest, ExtraTrees,
   AdaBoost, GradientBoosting, XGBoost, LightGBM, CatBoost, SVR (RBF), MLP.
@@ -91,14 +92,25 @@ class _LagBaseline:
     def predict(self, X): return X[self.lag_col].values
 
 
-def make_models(lag24: str = "P_lag_24",
+def make_models(lag1: str = "P_lag_1",
+                lag24: str = "P_lag_24",
                 lag168: str = "P_lag_168",
                 use_gpu: Optional[bool] = None) -> list[Bundle]:
-    """Return the full list of 18 model bundles configured for the benchmark."""
+    """Return the full list of model bundles for the benchmark.
+
+    Seventeen learned regressors plus three naive baselines: persistence at
+    lags 1 and 24 hours and a seasonal-naive at lag 168 hours. Lag-1
+    persistence is the reference baseline of the manuscript. Ordinary
+    least squares (LinearReg) is kept in the leaderboard for completeness
+    but is excluded from the manuscript ranking because it degenerates on
+    the collinear feature set.
+    """
     if use_gpu is None:
         use_gpu = detect_gpu() is not None
 
     M: list[Bundle] = []
+    if lag1:
+        M.append(Bundle("Persistence_lag1", _LagBaseline(lag1), False, "baseline"))
     if lag24:
         M.append(Bundle("Persistence_lag24", _LagBaseline(lag24), False, "baseline"))
     if lag168:

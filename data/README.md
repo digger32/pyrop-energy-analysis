@@ -8,11 +8,11 @@ The raw operational records analysed in the manuscript **are not included in thi
 
 A processed and anonymised version of the dataset, sufficient to reproduce all figures and tables of the manuscript, is deposited on **Zenodo** at:
 
-> DOI: `https://doi.org/10.5281/zenodo.20529770`.
-> 
+> DOI: `https://doi.org/10.5281/zenodo.20529770`
+
 The dataset contains:
 
-- Wide hourly panels of P and Q for the six 6 kV sources, two seasonal blocks of 2023.
+- Wide hourly panels of P and Q for the six 6 kV sources: the near-complete 2023 hourly record (8,712 of 8,760 hours, 99.45% coverage) in two consecutive archival blocks, January--July and August--December.
 - Monthly-aggregated archive of feeders 307 and 402 (Sept 2019 – June 2024).
 - Instrumental measurement sessions of July 2024.
 - Pre-built feature matrices used for the ML benchmark.

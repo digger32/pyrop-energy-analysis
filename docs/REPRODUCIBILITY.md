@@ -42,7 +42,7 @@ This executes parsing, statistics, feature engineering, ML benchmark, asymmetric
 |----------------------------|---------------|----------|
 | Parsing all source files   | 2 min         | 2 min    |
 | Statistics + GoF + STL     | 5 min         | 5 min    |
-| ML benchmark, 10 sources   | 90 min        | 25 min   |
+| ML benchmark, 12 source--period combinations | 90 min | 25 min |
 | Asymmetric coupling tests  | 1 min         | 1 min    |
 | **Total**                  | **~100 min**  | **~35 min** |
 

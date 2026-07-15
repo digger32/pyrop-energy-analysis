@@ -6,8 +6,17 @@ The feature matrix combines:
 2. Cyclic sine-cosine encodings of hour, weekday, and month.
 3. Lagged values of the target and of all panel sources at multiple lags.
 4. Rolling means and standard deviations (one-step lagged to avoid leakage).
-5. Panel-aggregate features (P_all, Q_all, S_all, pf_all) summed across all
-   sources at each timestamp.
+
+Leakage policy
+--------------
+Contemporaneous (same-hour) values of the target source are EXCLUDED from
+the feature matrix: the same-hour Q is dropped, and no S or pf columns are
+constructed anywhere, because S = sqrt(P^2 + Q^2) and pf = P/S are derived
+from the target P and would leak it into the predictors. Only lagged
+values enter the matrix. An earlier version of this pipeline included
+contemporaneous panel aggregates (P_all, Q_all, S_all, pf_all), which
+inflated R^2 above 0.99; the corrected benchmark is persistence-limited,
+as reported in the manuscript.
 
 Important: panel sources with hourly coverage below 50% on the target index
 are filtered out before lag construction. This prevents spurious all-NaN
@@ -109,6 +118,7 @@ def build_feature_matrix(df: pd.DataFrame,
                          panel_q: pd.DataFrame | None = None,
                          lags=None,
                          add_other_buses: bool = True,
+                         include_contemporaneous_q: bool = False,
                          drop_na: bool = True,
                          min_panel_coverage: float = 0.5,
                          verbose: bool = False) -> pd.DataFrame:
@@ -170,4 +180,17 @@ def build_feature_matrix(df: pd.DataFrame,
         print(f"  panel cols kept: {n_panel_kept}, dropped (low coverage): {n_panel_dropped}")
 
     fm = fm.rename(columns={target_col: "y"})
+
+    # Leakage policy: drop contemporaneous target-derived columns. The
+    # same-hour Q of the target source (and any S/pf columns, if present)
+    # must not be used to predict the same-hour P in the FORECASTING task.
+    # The NOWCASTING (virtual-metering) experiment of the manuscript keeps
+    # the raw contemporaneous Q(t) via include_contemporaneous_q=True; the
+    # derived quantities S and pf are excluded in both tasks, since they
+    # are functions of the target P itself.
+    leak_cols = [c for c in ("S", "pf") if c in fm.columns]
+    if not include_contemporaneous_q and "Q" in fm.columns:
+        leak_cols.append("Q")
+    fm = fm.drop(columns=leak_cols)
+
     return fm.dropna() if drop_na else fm

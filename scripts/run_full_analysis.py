@@ -119,11 +119,14 @@ def main() -> int:
             print(f"    top-1: {lb.iloc[0]['name']}  RMSE={lb.iloc[0]['RMSE_mean']:.2f}  "
                   f"R2={lb.iloc[0]['R2_mean']:.4f}")
 
-    # 6) Reserves
+    # 6) Reserves (supply-side balance boundary: incomers + cogeneration,
+    #    per-incomer power-factor loss reduction from the hourly panels)
     print("\n=== 6. Energy-saving reserves ===")
-    res = reserves.compute_reserves()
+    res = reserves.compute_reserves(panel_p, panel_q)
     res.to_csv(args.output / "tables/energy_savings_reserves.csv", index=False)
     total = res.iloc[-1]
+    print(f"  annual supply-side consumption: "
+          f"{res.attrs['annual_consumption_kwh']/1e6:.1f} GWh/year")
     print(f"  total saving: {total['saving_kwh_per_year']/1e6:.2f} GWh/year, "
           f"{total['co2_avoided_t_per_year']:.0f} t CO2/year")
 
